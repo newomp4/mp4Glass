@@ -2,8 +2,7 @@ import SwiftUI
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Six pill buttons — same frosted-glass shell, different tap-glow reaction.
-// V1, V3, V5 are the originals (pacing slowed).
-// V2, V4, V6 are new chromatic / liquid-glass effects.
+// V1, V3, V5 are originals (pacing slowed). V2, V4, V6 are chromatic / liquid.
 // ─────────────────────────────────────────────────────────────────────────────
 
 // MARK: - Tap style
@@ -49,6 +48,7 @@ private struct BlobCanvas: View {
                 let cx = size.width / 2, cy = size.height / 2
                 let minD = min(size.width, size.height)
                 let full = CGRect(origin: .zero, size: size)
+
                 for (i, p) in _blobParams.enumerated() {
                     let ox = cx + minD * 0.38 * cos(t * p.0 + p.2)
                     let oy = cy + minD * 0.32 * sin(t * p.1 + p.3)
@@ -61,6 +61,17 @@ private struct BlobCanvas: View {
                             endRadius: minD * 0.55
                         ))
                     }
+                }
+
+                // White hot-core — center feels lit from within
+                ctx.drawLayer { inner in
+                    inner.blendMode = .screen
+                    inner.fill(Path(full), with: .radialGradient(
+                        Gradient(colors: [Color.white.opacity(0.50), .clear]),
+                        center: CGPoint(x: cx, y: cy),
+                        startRadius: 0,
+                        endRadius: minD * 0.18
+                    ))
                 }
             }
         }
@@ -77,6 +88,11 @@ private struct CircleBlobs: View {
             Circle().fill(_colors[0]).frame(width: 48, height: 48).offset(x: c1x, y: c1y)
             Circle().fill(_colors[1]).frame(width: 40, height: 40).offset(x: c2x, y: c2y)
             Circle().fill(_colors[2]).frame(width: 36, height: 36).offset(x: c3x, y: c3y)
+            // White hot-core
+            Circle()
+                .fill(Color.white.opacity(0.55))
+                .frame(width: 20, height: 20)
+                .blur(radius: 5)
         }
         .onAppear {
             withAnimation(.easeInOut(duration: 3.0).repeatForever(autoreverses: true)) { c1x =  20 }
@@ -93,7 +109,10 @@ private struct CircleBlobs: View {
     }
 }
 
-// MARK: - Chrome shell
+// MARK: - Glass shell
+// Layers (bottom → top):
+//   dark base → underlay → material → inner face glow → overlay → label → specular rim
+// Then outer glow via .shadow() after the clip.
 
 private struct GlassPill<U: View, O: View>: View {
     let label: String
@@ -108,16 +127,61 @@ private struct GlassPill<U: View, O: View>: View {
 
     var body: some View {
         ZStack {
-            Capsule().fill(Color(red: 0.07, green: 0.07, blue: 0.11))
+            // 1. Dark base
+            Capsule().fill(Color(red: 0.06, green: 0.06, blue: 0.10))
+
+            // 2. Animated glow underlay
             underlay
+
+            // 3. Frosted material — frosts both the blobs and whatever is behind the button
             Capsule().fill(.ultraThinMaterial)
+
+            // 4. Inner face glow — top of the glass face is brightest, fades toward center
+            Capsule()
+                .fill(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .white.opacity(0.22), location: 0.00),
+                            .init(color: .white.opacity(0.07), location: 0.42),
+                            .init(color: .clear,               location: 0.78),
+                        ],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+
+            // 5. Per-variant overlay (ripple ring, etc.)
             overlay
+
+            // 6. Label — airy tracking, white glow for glassy depth
             Text(label)
-                .font(.system(size: 15, weight: .semibold, design: .rounded))
-                .foregroundStyle(.white)
-            Capsule().stroke(Color.white.opacity(0.18), lineWidth: 0.75)
+                .font(.system(size: 15, weight: .regular, design: .rounded))
+                .tracking(0.5)
+                .foregroundStyle(.white.opacity(0.92))
+                .shadow(color: .white.opacity(0.65), radius: 6, x: 0, y: 0)
+                .shadow(color: .black.opacity(0.22), radius: 2, x: 0, y: 1)
+
+            // 7. Specular rim — bright top-leading, dims to almost invisible, slight lift at bottom
+            Capsule()
+                .stroke(
+                    LinearGradient(
+                        stops: [
+                            .init(color: .white.opacity(0.82), location: 0.00),
+                            .init(color: .white.opacity(0.24), location: 0.32),
+                            .init(color: .white.opacity(0.04), location: 0.56),
+                            .init(color: .white.opacity(0.36), location: 1.00),
+                        ],
+                        startPoint: .topLeading,
+                        endPoint: .bottomTrailing
+                    ),
+                    lineWidth: 1.0
+                )
+                .blur(radius: 0.8)
         }
         .clipShape(Capsule())
+        // Outer glow: coloured bloom (blue-violet) + tight white rim light
+        .shadow(color: Color(hue: 0.68, saturation: 0.88, brightness: 1.0).opacity(0.26), radius: 16, x: 0, y: 2)
+        .shadow(color: .white.opacity(0.13), radius: 3, x: 0, y: 0)
     }
 }
 
@@ -129,7 +193,6 @@ extension GlassPill where O == EmptyView {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // V1 — Pulse Out
-// Glow scale jumps to 2.8× then springs back. Like a shockwave from the core.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public struct GlassPillV1: View {
@@ -152,8 +215,6 @@ public struct GlassPillV1: View {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // V2 — Chromatic Pulse
-// Glow blooms outward while the hue sweeps ~40° — like light prismatically
-// dispersing through glass as it expands.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public struct GlassPillV2: View {
@@ -177,7 +238,6 @@ public struct GlassPillV2: View {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // V3 — Squeeze Burst
-// Glow compresses to near-zero, then low-damping spring bounces it back past 1×.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public struct GlassPillV3: View {
@@ -200,8 +260,6 @@ public struct GlassPillV3: View {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // V4 — Liquid Surge
-// Saturation spikes to jewel-vivid as blur tightens, then slowly cools back
-// to frosted. Feels like dye suddenly intensifying, then diffusing.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public struct GlassPillV4: View {
@@ -225,8 +283,6 @@ public struct GlassPillV4: View {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // V5 — Clarity Flash
-// Blur drops to zero — frosted glass momentarily becomes transparent, showing
-// raw vivid blobs, then slowly re-frosts.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public struct GlassPillV5: View {
@@ -248,8 +304,6 @@ public struct GlassPillV5: View {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // V6 — Glass Refract
-// Two blob layers scale outward at different rates while hue-rotating in
-// opposite directions — chromatic aberration / light dispersing through thick glass.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public struct GlassPillV6: View {
@@ -261,13 +315,11 @@ public struct GlassPillV6: View {
         Button(action: action) {
             GlassPill(label) {
                 ZStack {
-                    // Slow base layer — hue shifts one direction
                     BlobCanvas()
                         .blur(radius: 16)
                         .scaleEffect(1 + tap * 1.0)
                         .hueRotation(.degrees(Double(tap) * -25))
 
-                    // Fast outer layer — hue shifts opposite direction, blends above
                     BlobCanvas()
                         .blur(radius: 10)
                         .scaleEffect(1 + tap * 1.9)
