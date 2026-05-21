@@ -20,9 +20,9 @@ private func triggerTap(_ tap: Binding<CGFloat>, duration: Double) {
 // MARK: - Shared blob colors + parameters
 
 private let _colors: [Color] = [
-    Color(hue: 0.620, saturation: 1.0, brightness: 1.00),  // electric blue
-    Color(hue: 0.780, saturation: 1.0, brightness: 0.95),  // vivid violet
-    Color(hue: 0.060, saturation: 1.0, brightness: 1.00),  // hot orange
+    Color(hue: 0.578, saturation: 0.52, brightness: 1.00),  // baby blue
+    Color(hue: 0.108, saturation: 0.95, brightness: 1.00),  // marigold
+    Color(hue: 0.038, saturation: 0.68, brightness: 1.00),  // coral
 ]
 
 private let _blobParams: [(Double, Double, Double, Double)] = [
@@ -43,15 +43,15 @@ private struct BlobCanvas: View {
                 let full = CGRect(origin: .zero, size: size)
 
                 for (i, p) in _blobParams.enumerated() {
-                    let ox = cx + minD * 0.38 * cos(t * p.0 + p.2)
-                    let oy = cy + minD * 0.32 * sin(t * p.1 + p.3)
+                    let ox = cx + minD * 0.18 * cos(t * p.0 + p.2)
+                    let oy = cy + minD * 0.15 * sin(t * p.1 + p.3)
                     ctx.drawLayer { inner in
                         inner.blendMode = .screen
                         inner.fill(Path(full), with: .radialGradient(
                             Gradient(colors: [_colors[i], .clear]),
                             center: CGPoint(x: ox, y: oy),
                             startRadius: 0,
-                            endRadius: minD * 0.55
+                            endRadius: minD * 0.38
                         ))
                     }
                 }
@@ -78,9 +78,9 @@ private struct CircleBlobs: View {
 
     var body: some View {
         ZStack {
-            Circle().fill(_colors[0]).frame(width: 48, height: 48).offset(x: c1x, y: c1y)
-            Circle().fill(_colors[1]).frame(width: 40, height: 40).offset(x: c2x, y: c2y)
-            Circle().fill(_colors[2]).frame(width: 36, height: 36).offset(x: c3x, y: c3y)
+            Circle().fill(_colors[0]).frame(width: 38, height: 38).offset(x: c1x, y: c1y)
+            Circle().fill(_colors[1]).frame(width: 32, height: 32).offset(x: c2x, y: c2y)
+            Circle().fill(_colors[2]).frame(width: 28, height: 28).offset(x: c3x, y: c3y)
             // White hot-core
             Circle()
                 .fill(Color.white.opacity(0.55))
@@ -88,15 +88,15 @@ private struct CircleBlobs: View {
                 .blur(radius: 5)
         }
         .onAppear {
-            withAnimation(.easeInOut(duration: 3.0).repeatForever(autoreverses: true)) { c1x =  20 }
-            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) { c1y =   8 }
+            withAnimation(.easeInOut(duration: 3.0).repeatForever(autoreverses: true)) { c1x =  10 }
+            withAnimation(.easeInOut(duration: 2.4).repeatForever(autoreverses: true)) { c1y =   5 }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
-                withAnimation(.easeInOut(duration: 2.7).repeatForever(autoreverses: true)) { c2x = -16 }
-                withAnimation(.easeInOut(duration: 3.3).repeatForever(autoreverses: true)) { c2y =  -7 }
+                withAnimation(.easeInOut(duration: 2.7).repeatForever(autoreverses: true)) { c2x =  -8 }
+                withAnimation(.easeInOut(duration: 3.3).repeatForever(autoreverses: true)) { c2y =  -4 }
             }
             DispatchQueue.main.asyncAfter(deadline: .now() + 1.9) {
-                withAnimation(.easeInOut(duration: 3.5).repeatForever(autoreverses: true)) { c3x =  10 }
-                withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) { c3y = -10 }
+                withAnimation(.easeInOut(duration: 3.5).repeatForever(autoreverses: true)) { c3x =   6 }
+                withAnimation(.easeInOut(duration: 2.0).repeatForever(autoreverses: true)) { c3y =  -6 }
             }
         }
     }
