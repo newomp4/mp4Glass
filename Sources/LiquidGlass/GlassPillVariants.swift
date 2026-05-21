@@ -7,11 +7,11 @@ import SwiftUI
 
 // MARK: - Tap trigger helper
 
-private func triggerTap(_ tap: Binding<CGFloat>, response: Double, damping: Double) {
+private func triggerTap(_ tap: Binding<CGFloat>, duration: Double) {
     tap.wrappedValue = 1.0
-    // Defer animation to next run loop so SwiftUI renders the 1.0 state first
+    // Defer to next run loop so SwiftUI renders tap=1 before dispersing
     DispatchQueue.main.async {
-        withAnimation(.spring(response: response, dampingFraction: damping)) {
+        withAnimation(.easeOut(duration: duration)) {
             tap.wrappedValue = 0
         }
     }
@@ -102,47 +102,8 @@ private struct CircleBlobs: View {
     }
 }
 
-// MARK: - Shimmer
-
-/// A soft diagonal light band that sweeps across the glass surface every ~6 s.
-/// Uses an ease-in-out curve so it accelerates from the edge and decelerates
-/// on exit — no mechanical constant-velocity feel.
-private struct ShimmerLayer: View {
-    var body: some View {
-        TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
-            let t      = tl.date.timeIntervalSinceReferenceDate
-            let period = 6.0    // seconds between sweeps
-            let sweep  = 0.55   // seconds to cross the button
-            let raw    = t.truncatingRemainder(dividingBy: period)
-            let linear = CGFloat(min(1.0, raw / sweep))
-            // Smooth ease-in-out (cubic): slow start, fast middle, slow end
-            let prog   = linear * linear * (3 - 2 * linear)
-
-            Canvas { ctx, size in
-                let x    = prog * (size.width + 80) - 40
-                let full = CGRect(origin: .zero, size: size)
-                ctx.drawLayer { inner in
-                    inner.blendMode = .overlay
-                    inner.fill(Path(full), with: .linearGradient(
-                        Gradient(stops: [
-                            .init(color: .clear,               location: 0.00),
-                            .init(color: .white.opacity(0.38), location: 0.50),
-                            .init(color: .clear,               location: 1.00),
-                        ]),
-                        // Angled diagonal: top of band leads left, bottom trails right
-                        startPoint: CGPoint(x: x - 32, y: 0),
-                        endPoint:   CGPoint(x: x + 32, y: size.height)
-                    ))
-                }
-            }
-        }
-        .allowsHitTesting(false)
-    }
-}
-
 // MARK: - Glass shell
-// Layers (bottom → top):
-//   dark base → underlay → material → shimmer → overlay → label → specular rim
+// Layers (bottom → top): dark base → underlay → material → overlay → label → border
 
 private struct GlassPill<U: View, O: View>: View {
     let label: String
@@ -157,27 +118,13 @@ private struct GlassPill<U: View, O: View>: View {
 
     var body: some View {
         ZStack {
-            // 1. Dark base
             Capsule().fill(Color(red: 0.06, green: 0.06, blue: 0.10))
-
-            // 2. Animated glow underlay
             underlay
-
-            // 3. Frosted material
             Capsule().fill(.ultraThinMaterial)
-
-            // 4. Shimmer — sits on top of the glass surface
-            ShimmerLayer()
-
-            // 5. Per-variant overlay (ripple ring, etc.)
             overlay
-
-            // 6. Label
             Text(label)
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(.white)
-
-            // 7. Specular border
             Capsule()
                 .stroke(Color.white.opacity(0.18), lineWidth: 0.75)
         }
@@ -192,7 +139,8 @@ extension GlassPill where O == EmptyView {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// V1 — Pulse Out
+// V1 — Glow Fill
+// Tap floods the blobs outward + lifts brightness. Glow slowly recedes.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public struct GlassPillV1: View {
@@ -202,22 +150,23 @@ public struct GlassPillV1: View {
 
     public var body: some View {
         Button {
-            triggerTap($tap, response: 0.80, damping: 0.52)
+            triggerTap($tap, duration: 2.0)
             action()
         } label: {
             GlassPill(label) {
                 BlobCanvas()
                     .blur(radius: 8)
-                    .scaleEffect(1 + tap * 4.0)
+                    .scaleEffect(1 + tap * 3.5)
+                    .brightness(Double(tap) * 0.30)
             }
         }
         .buttonStyle(.plain)
-        .scaleEffect(1 + tap * 0.07)
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// V2 — Chromatic Pulse
+// V2 — Chromatic Fill
+// Blobs swell while hue slowly drifts — colors flood in and gradually return.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public struct GlassPillV2: View {
@@ -227,23 +176,24 @@ public struct GlassPillV2: View {
 
     public var body: some View {
         Button {
-            triggerTap($tap, response: 0.85, damping: 0.58)
+            triggerTap($tap, duration: 2.2)
             action()
         } label: {
             GlassPill(label) {
                 BlobCanvas()
                     .blur(radius: 8)
-                    .scaleEffect(1 + tap * 3.5)
-                    .hueRotation(.degrees(Double(tap) * 65))
+                    .scaleEffect(1 + tap * 3.0)
+                    .hueRotation(.degrees(Double(tap) * 60))
+                    .brightness(Double(tap) * 0.25)
             }
         }
         .buttonStyle(.plain)
-        .scaleEffect(1 + tap * 0.07)
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// V3 — Squeeze Burst
+// V3 — Deep Compress
+// Energy concentrates to a bright dense point, then slowly expands back out.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public struct GlassPillV3: View {
@@ -253,22 +203,23 @@ public struct GlassPillV3: View {
 
     public var body: some View {
         Button {
-            triggerTap($tap, response: 0.60, damping: 0.22)
+            triggerTap($tap, duration: 2.4)
             action()
         } label: {
             GlassPill(label) {
                 BlobCanvas()
-                    .blur(radius: 8)
-                    .scaleEffect(max(0.02, 1 - tap * 0.96))
+                    .blur(radius: max(2, 14 - tap * 10))
+                    .scaleEffect(max(0.15, 1 - tap * 0.82))
+                    .brightness(Double(tap) * 0.50)
             }
         }
         .buttonStyle(.plain)
-        .scaleEffect(max(0.88, 1 - tap * 0.12))
     }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// V4 — Liquid Surge
+// V4 — Saturation Surge
+// Colors flood to jewel-vivid as glass nearly clears, then slowly re-frosts.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public struct GlassPillV4: View {
@@ -278,14 +229,14 @@ public struct GlassPillV4: View {
 
     public var body: some View {
         Button {
-            triggerTap($tap, response: 0.95, damping: 0.65)
+            triggerTap($tap, duration: 2.0)
             action()
         } label: {
             GlassPill(label) {
                 CircleBlobs()
                     .blur(radius: max(0, 16 - tap * 15))
-                    .saturation(1.0 + Double(tap) * 5.5)
-                    .brightness(Double(tap) * 0.45)
+                    .saturation(1.0 + Double(tap) * 5.0)
+                    .brightness(Double(tap) * 0.40)
             }
         }
         .buttonStyle(.plain)
@@ -293,7 +244,8 @@ public struct GlassPillV4: View {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// V5 — Clarity Flash
+// V5 — Clarity Fill
+// Glass fully clears on tap — raw vivid blobs visible — then slowly re-frosts.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public struct GlassPillV5: View {
@@ -303,14 +255,14 @@ public struct GlassPillV5: View {
 
     public var body: some View {
         Button {
-            triggerTap($tap, response: 1.10, damping: 0.70)
+            triggerTap($tap, duration: 2.6)
             action()
         } label: {
             GlassPill(label) {
                 CircleBlobs()
                     .blur(radius: max(0, 16 - tap * 16))
                     .saturation(1.0 + Double(tap) * 2.5)
-                    .brightness(Double(tap) * 0.65)
+                    .brightness(Double(tap) * 0.55)
             }
         }
         .buttonStyle(.plain)
@@ -319,6 +271,7 @@ public struct GlassPillV5: View {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // V6 — Glass Refract
+// Two glow layers fill and spread apart chromatically, then slowly converge.
 // ─────────────────────────────────────────────────────────────────────────────
 
 public struct GlassPillV6: View {
@@ -328,19 +281,19 @@ public struct GlassPillV6: View {
 
     public var body: some View {
         Button {
-            triggerTap($tap, response: 1.00, damping: 0.68)
+            triggerTap($tap, duration: 2.2)
             action()
         } label: {
             GlassPill(label) {
                 ZStack {
                     BlobCanvas()
                         .blur(radius: 12)
-                        .scaleEffect(1 + tap * 1.8)
+                        .scaleEffect(1 + tap * 2.0)
                         .hueRotation(.degrees(Double(tap) * -45))
 
                     BlobCanvas()
                         .blur(radius: 6)
-                        .scaleEffect(1 + tap * 4.5)
+                        .scaleEffect(1 + tap * 4.0)
                         .hueRotation(.degrees(Double(tap) * 45))
                         .opacity(0.80)
                         .blendMode(.screen)

@@ -25,33 +25,33 @@ public struct GlassDemo: View {
 
                     VStack(spacing: 30) {
 
-                        row("01", "Pulse Out",
-                            "glow explodes outward then springs back") {
-                            GlassPillV1("Pulse Out") {}
+                        row("01", "Glow Fill",
+                            "blobs flood outward then slowly recede") {
+                            GlassPillV1("Glow Fill") {}
                         }
 
-                        row("02", "Chromatic Pulse",
-                            "glow blooms while hue sweeps the spectrum — prismatic dispersion") {
-                            GlassPillV2("Chromatic Pulse") {}
+                        row("02", "Chromatic Fill",
+                            "blobs swell while hue drifts, slowly returns") {
+                            GlassPillV2("Chromatic Fill") {}
                         }
 
-                        row("03", "Squeeze Burst",
-                            "glow compresses to a point, bouncy spring pushes it back past 1×") {
-                            GlassPillV3("Squeeze Burst") {}
+                        row("03", "Deep Compress",
+                            "energy concentrates to a bright point, slowly re-expands") {
+                            GlassPillV3("Deep Compress") {}
                         }
 
-                        row("04", "Liquid Surge",
-                            "saturation floods the center — jewel-vivid colors surge then slowly cool") {
-                            GlassPillV4("Liquid Surge") {}
+                        row("04", "Saturation Surge",
+                            "colors flood to jewel-vivid, glass slowly re-frosts") {
+                            GlassPillV4("Saturation Surge") {}
                         }
 
-                        row("05", "Clarity Flash",
-                            "frosted glass momentarily clears — raw vivid blobs, then re-frosts") {
-                            GlassPillV5("Clarity Flash") {}
+                        row("05", "Clarity Fill",
+                            "glass fully clears showing raw blobs, slowly re-frosts") {
+                            GlassPillV5("Clarity Fill") {}
                         }
 
                         row("06", "Glass Refract",
-                            "two glow layers split at different rates — chromatic aberration through glass") {
+                            "two glow layers spread apart chromatically, slowly converge") {
                             GlassPillV6("Glass Refract") {}
                         }
                     }
