@@ -104,35 +104,34 @@ private struct CircleBlobs: View {
 
 // MARK: - Shimmer
 
-/// A narrow diagonal light band that sweeps across the glass surface every ~4 s,
-/// like a beam of light catching real frosted glass.
+/// A soft diagonal light band that sweeps across the glass surface every ~6 s.
+/// Uses an ease-in-out curve so it accelerates from the edge and decelerates
+/// on exit — no mechanical constant-velocity feel.
 private struct ShimmerLayer: View {
     var body: some View {
         TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
-            let t       = tl.date.timeIntervalSinceReferenceDate
-            let period  = 4.0    // full cycle length in seconds
-            let sweep   = 0.50   // time the band takes to cross the button
-            let raw     = t.truncatingRemainder(dividingBy: period)
-            let prog    = CGFloat(min(1.0, raw / sweep))
+            let t      = tl.date.timeIntervalSinceReferenceDate
+            let period = 6.0    // seconds between sweeps
+            let sweep  = 0.55   // seconds to cross the button
+            let raw    = t.truncatingRemainder(dividingBy: period)
+            let linear = CGFloat(min(1.0, raw / sweep))
+            // Smooth ease-in-out (cubic): slow start, fast middle, slow end
+            let prog   = linear * linear * (3 - 2 * linear)
 
             Canvas { ctx, size in
-                // Band travels from off-left to off-right during 0→1
-                let x    = prog * (size.width + 60) - 30
-                let half = CGFloat(22)           // half-width of the streak
+                let x    = prog * (size.width + 80) - 40
                 let full = CGRect(origin: .zero, size: size)
-
                 ctx.drawLayer { inner in
                     inner.blendMode = .overlay
                     inner.fill(Path(full), with: .linearGradient(
                         Gradient(stops: [
-                            .init(color: .clear,                location: 0.00),
-                            .init(color: .white.opacity(0.55),  location: 0.42),
-                            .init(color: .white.opacity(0.55),  location: 0.58),
-                            .init(color: .clear,                location: 1.00),
+                            .init(color: .clear,               location: 0.00),
+                            .init(color: .white.opacity(0.38), location: 0.50),
+                            .init(color: .clear,               location: 1.00),
                         ]),
-                        // Slight diagonal: start top-left of band, end bottom-right
-                        startPoint: CGPoint(x: x - half, y: -4),
-                        endPoint:   CGPoint(x: x + half, y: size.height + 4)
+                        // Angled diagonal: top of band leads left, bottom trails right
+                        startPoint: CGPoint(x: x - 32, y: 0),
+                        endPoint:   CGPoint(x: x + 32, y: size.height)
                     ))
                 }
             }
