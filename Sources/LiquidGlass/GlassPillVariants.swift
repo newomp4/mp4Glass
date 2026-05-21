@@ -102,10 +102,48 @@ private struct CircleBlobs: View {
     }
 }
 
+// MARK: - Shimmer
+
+/// A narrow diagonal light band that sweeps across the glass surface every ~4 s,
+/// like a beam of light catching real frosted glass.
+private struct ShimmerLayer: View {
+    var body: some View {
+        TimelineView(.animation(minimumInterval: 1.0 / 60)) { tl in
+            let t       = tl.date.timeIntervalSinceReferenceDate
+            let period  = 4.0    // full cycle length in seconds
+            let sweep   = 0.50   // time the band takes to cross the button
+            let raw     = t.truncatingRemainder(dividingBy: period)
+            let prog    = CGFloat(min(1.0, raw / sweep))
+
+            Canvas { ctx, size in
+                // Band travels from off-left to off-right during 0→1
+                let x    = prog * (size.width + 60) - 30
+                let half = CGFloat(22)           // half-width of the streak
+                let full = CGRect(origin: .zero, size: size)
+
+                ctx.drawLayer { inner in
+                    inner.blendMode = .overlay
+                    inner.fill(Path(full), with: .linearGradient(
+                        Gradient(stops: [
+                            .init(color: .clear,                location: 0.00),
+                            .init(color: .white.opacity(0.55),  location: 0.42),
+                            .init(color: .white.opacity(0.55),  location: 0.58),
+                            .init(color: .clear,                location: 1.00),
+                        ]),
+                        // Slight diagonal: start top-left of band, end bottom-right
+                        startPoint: CGPoint(x: x - half, y: -4),
+                        endPoint:   CGPoint(x: x + half, y: size.height + 4)
+                    ))
+                }
+            }
+        }
+        .allowsHitTesting(false)
+    }
+}
+
 // MARK: - Glass shell
 // Layers (bottom → top):
-//   dark base → underlay → material → inner face glow → overlay → label → specular rim
-// Then outer glow via .shadow() after the clip.
+//   dark base → underlay → material → shimmer → overlay → label → specular rim
 
 private struct GlassPill<U: View, O: View>: View {
     let label: String
@@ -129,15 +167,18 @@ private struct GlassPill<U: View, O: View>: View {
             // 3. Frosted material
             Capsule().fill(.ultraThinMaterial)
 
-            // 4. Per-variant overlay (ripple ring, etc.)
+            // 4. Shimmer — sits on top of the glass surface
+            ShimmerLayer()
+
+            // 5. Per-variant overlay (ripple ring, etc.)
             overlay
 
-            // 5. Label — clean, no effects
+            // 6. Label
             Text(label)
                 .font(.system(size: 15, weight: .medium, design: .rounded))
                 .foregroundStyle(.white)
 
-            // 6. Subtle specular border — just barely there
+            // 7. Specular border
             Capsule()
                 .stroke(Color.white.opacity(0.18), lineWidth: 0.75)
         }
