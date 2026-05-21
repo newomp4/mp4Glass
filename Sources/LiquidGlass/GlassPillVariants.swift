@@ -5,22 +5,15 @@ import SwiftUI
 // V1, V3, V5 are originals (pacing slowed). V2, V4, V6 are chromatic / liquid.
 // ─────────────────────────────────────────────────────────────────────────────
 
-// MARK: - Tap style
+// MARK: - Tap trigger helper
 
-private struct GlowTapStyle: ButtonStyle {
-    @Binding var tapAnim: CGFloat
-    var response: Double
-    var damping:  Double
-
-    func makeBody(configuration: Configuration) -> some View {
-        configuration.label
-            .onChange(of: configuration.isPressed) { _, pressed in
-                guard pressed else { return }
-                tapAnim = 1.0
-                withAnimation(.spring(response: response, dampingFraction: damping)) {
-                    tapAnim = 0
-                }
-            }
+private func triggerTap(_ tap: Binding<CGFloat>, response: Double, damping: Double) {
+    tap.wrappedValue = 1.0
+    // Defer animation to next run loop so SwiftUI renders the 1.0 state first
+    DispatchQueue.main.async {
+        withAnimation(.spring(response: response, dampingFraction: damping)) {
+            tap.wrappedValue = 0
+        }
     }
 }
 
@@ -133,55 +126,22 @@ private struct GlassPill<U: View, O: View>: View {
             // 2. Animated glow underlay
             underlay
 
-            // 3. Frosted material — frosts both the blobs and whatever is behind the button
+            // 3. Frosted material
             Capsule().fill(.ultraThinMaterial)
 
-            // 4. Inner face glow — top of the glass face is brightest, fades toward center
-            Capsule()
-                .fill(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .white.opacity(0.22), location: 0.00),
-                            .init(color: .white.opacity(0.07), location: 0.42),
-                            .init(color: .clear,               location: 0.78),
-                        ],
-                        startPoint: .top,
-                        endPoint: .bottom
-                    )
-                )
-
-            // 5. Per-variant overlay (ripple ring, etc.)
+            // 4. Per-variant overlay (ripple ring, etc.)
             overlay
 
-            // 6. Label — airy tracking, white glow for glassy depth
+            // 5. Label — clean, no effects
             Text(label)
-                .font(.system(size: 15, weight: .regular, design: .rounded))
-                .tracking(0.5)
-                .foregroundStyle(.white.opacity(0.92))
-                .shadow(color: .white.opacity(0.65), radius: 6, x: 0, y: 0)
-                .shadow(color: .black.opacity(0.22), radius: 2, x: 0, y: 1)
+                .font(.system(size: 15, weight: .medium, design: .rounded))
+                .foregroundStyle(.white)
 
-            // 7. Specular rim — bright top-leading, dims to almost invisible, slight lift at bottom
+            // 6. Subtle specular border — just barely there
             Capsule()
-                .stroke(
-                    LinearGradient(
-                        stops: [
-                            .init(color: .white.opacity(0.82), location: 0.00),
-                            .init(color: .white.opacity(0.24), location: 0.32),
-                            .init(color: .white.opacity(0.04), location: 0.56),
-                            .init(color: .white.opacity(0.36), location: 1.00),
-                        ],
-                        startPoint: .topLeading,
-                        endPoint: .bottomTrailing
-                    ),
-                    lineWidth: 1.0
-                )
-                .blur(radius: 0.8)
+                .stroke(Color.white.opacity(0.18), lineWidth: 0.75)
         }
         .clipShape(Capsule())
-        // Outer glow: coloured bloom (blue-violet) + tight white rim light
-        .shadow(color: Color(hue: 0.68, saturation: 0.88, brightness: 1.0).opacity(0.26), radius: 16, x: 0, y: 2)
-        .shadow(color: .white.opacity(0.13), radius: 3, x: 0, y: 0)
     }
 }
 
@@ -201,15 +161,18 @@ public struct GlassPillV1: View {
     public init(_ label: String, action: @escaping () -> Void) { self.label = label; self.action = action }
 
     public var body: some View {
-        Button(action: action) {
+        Button {
+            triggerTap($tap, response: 0.80, damping: 0.52)
+            action()
+        } label: {
             GlassPill(label) {
                 BlobCanvas()
-                    .blur(radius: 14)
-                    .scaleEffect(1 + tap * 1.8)
-                    .clipShape(Capsule())
+                    .blur(radius: 8)
+                    .scaleEffect(1 + tap * 4.0)
             }
         }
-        .buttonStyle(GlowTapStyle(tapAnim: $tap, response: 0.80, damping: 0.58))
+        .buttonStyle(.plain)
+        .scaleEffect(1 + tap * 0.07)
     }
 }
 
@@ -223,16 +186,19 @@ public struct GlassPillV2: View {
     public init(_ label: String, action: @escaping () -> Void) { self.label = label; self.action = action }
 
     public var body: some View {
-        Button(action: action) {
+        Button {
+            triggerTap($tap, response: 0.85, damping: 0.58)
+            action()
+        } label: {
             GlassPill(label) {
                 BlobCanvas()
-                    .blur(radius: 14)
-                    .scaleEffect(1 + tap * 1.6)
-                    .hueRotation(.degrees(Double(tap) * 40))
-                    .clipShape(Capsule())
+                    .blur(radius: 8)
+                    .scaleEffect(1 + tap * 3.5)
+                    .hueRotation(.degrees(Double(tap) * 65))
             }
         }
-        .buttonStyle(GlowTapStyle(tapAnim: $tap, response: 0.85, damping: 0.62))
+        .buttonStyle(.plain)
+        .scaleEffect(1 + tap * 0.07)
     }
 }
 
@@ -246,15 +212,18 @@ public struct GlassPillV3: View {
     public init(_ label: String, action: @escaping () -> Void) { self.label = label; self.action = action }
 
     public var body: some View {
-        Button(action: action) {
+        Button {
+            triggerTap($tap, response: 0.60, damping: 0.22)
+            action()
+        } label: {
             GlassPill(label) {
                 BlobCanvas()
-                    .blur(radius: 14)
-                    .scaleEffect(max(0.05, 1 - tap * 0.90))
-                    .clipShape(Capsule())
+                    .blur(radius: 8)
+                    .scaleEffect(max(0.02, 1 - tap * 0.96))
             }
         }
-        .buttonStyle(GlowTapStyle(tapAnim: $tap, response: 0.65, damping: 0.30))
+        .buttonStyle(.plain)
+        .scaleEffect(max(0.88, 1 - tap * 0.12))
     }
 }
 
@@ -268,16 +237,18 @@ public struct GlassPillV4: View {
     public init(_ label: String, action: @escaping () -> Void) { self.label = label; self.action = action }
 
     public var body: some View {
-        Button(action: action) {
+        Button {
+            triggerTap($tap, response: 0.95, damping: 0.65)
+            action()
+        } label: {
             GlassPill(label) {
                 CircleBlobs()
-                    .blur(radius: max(3, 16 - tap * 10))
-                    .saturation(1.0 + Double(tap) * 3.0)
-                    .brightness(Double(tap) * 0.20)
-                    .clipShape(Capsule())
+                    .blur(radius: max(0, 16 - tap * 15))
+                    .saturation(1.0 + Double(tap) * 5.5)
+                    .brightness(Double(tap) * 0.45)
             }
         }
-        .buttonStyle(GlowTapStyle(tapAnim: $tap, response: 0.95, damping: 0.68))
+        .buttonStyle(.plain)
     }
 }
 
@@ -291,14 +262,18 @@ public struct GlassPillV5: View {
     public init(_ label: String, action: @escaping () -> Void) { self.label = label; self.action = action }
 
     public var body: some View {
-        Button(action: action) {
+        Button {
+            triggerTap($tap, response: 1.10, damping: 0.70)
+            action()
+        } label: {
             GlassPill(label) {
                 CircleBlobs()
                     .blur(radius: max(0, 16 - tap * 16))
-                    .clipShape(Capsule())
+                    .saturation(1.0 + Double(tap) * 2.5)
+                    .brightness(Double(tap) * 0.65)
             }
         }
-        .buttonStyle(GlowTapStyle(tapAnim: $tap, response: 1.10, damping: 0.72))
+        .buttonStyle(.plain)
     }
 }
 
@@ -312,24 +287,26 @@ public struct GlassPillV6: View {
     public init(_ label: String, action: @escaping () -> Void) { self.label = label; self.action = action }
 
     public var body: some View {
-        Button(action: action) {
+        Button {
+            triggerTap($tap, response: 1.00, damping: 0.68)
+            action()
+        } label: {
             GlassPill(label) {
                 ZStack {
                     BlobCanvas()
-                        .blur(radius: 16)
-                        .scaleEffect(1 + tap * 1.0)
-                        .hueRotation(.degrees(Double(tap) * -25))
+                        .blur(radius: 12)
+                        .scaleEffect(1 + tap * 1.8)
+                        .hueRotation(.degrees(Double(tap) * -45))
 
                     BlobCanvas()
-                        .blur(radius: 10)
-                        .scaleEffect(1 + tap * 1.9)
-                        .hueRotation(.degrees(Double(tap) * 25))
-                        .opacity(0.75)
+                        .blur(radius: 6)
+                        .scaleEffect(1 + tap * 4.5)
+                        .hueRotation(.degrees(Double(tap) * 45))
+                        .opacity(0.80)
                         .blendMode(.screen)
                 }
-                .clipShape(Capsule())
             }
         }
-        .buttonStyle(GlowTapStyle(tapAnim: $tap, response: 1.00, damping: 0.70))
+        .buttonStyle(.plain)
     }
 }
